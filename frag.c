@@ -1,9 +1,8 @@
 #include "frag.h"
 
-//#define FRAGDBG(x...)       printf(x)
-#define FRAGDBG(x...)
+#define FRAGDBG(x...)       printf(x)
 #define FRAGLOG(x...)       printf(x)
-//#define DEBUG
+#define DEBUG
 
 static bool is_power2(uint32_t num)
 {
@@ -47,12 +46,21 @@ static int matrix_line(uint8_t *buf, int n, int m)
     return 0;
 }
 
+// n: index of the uncoded and coded fragmentations, maximum N - 1, starts from 0
 static int matrix_line_bm(bm_t *bm, int n, int m)
 {
     int mm, x, nbCoeff, r;
 
     bit_clear_all(bm, m);
 
+    /* from 0 to m - 1 */
+    if (n < m) {
+        bit_set(bm, n);
+        return 0;
+    }
+
+    /* from m to N */
+    n = n - m + 1;
     mm = 0;
     if (is_power2(m)) {
         mm = 1;
@@ -176,7 +184,7 @@ int frag_dec_init(frag_dec_t *obj)
     }
 
     obj->filled_lost_frm_count = 0;
-    obj->finished = false;
+    obj->sta = FRAG_DEC_STA_UNCODED;
 
     return i;
 }
@@ -248,7 +256,7 @@ int frag_dec(frag_dec_t *obj, uint16_t fcnt, uint8_t *buf, int len)
     int lost_frame_index, frame_index, frame_index1;
     bool no_info;
 
-    if (obj->finished) {
+    if (obj->sta == FRAG_DEC_STA_DONE) {
         return obj->lost_frm_count;
     }
 
@@ -264,25 +272,27 @@ int frag_dec(frag_dec_t *obj, uint16_t fcnt, uint8_t *buf, int len)
     memcpy(obj->xor_row_data_buf, buf, obj->cfg.size);
 
     index = fcnt - 1;
-    if (index < obj->cfg.nb) {
-        /* uncoded frames */
+    if ((index < obj->cfg.nb) && (obj->sta == FRAG_DEC_STA_UNCODED)) {
+        /* uncoded frames under uncoded process */
         /* mark new received frame */
         frag_dec_frame_received(obj, index);
         /* save data to flash */
         frag_dec_flash_wr(obj, index, buf);
         /* if no frame lost finish decode process */
         if (obj->lost_frm_count == 0) {
-            obj->finished = true;
+            obj->sta = FRAG_DEC_STA_DONE;
             return obj->lost_frm_count;
         }
     } else {
+        obj->sta = FRAG_DEC_STA_CODED;
         /* coded frames start processing, lost_frm_count is now frozen and should be not changed (!!!) */
         /* too many packets are lost, it is not possible to reconstruct data block */
         if (obj->lost_frm_count > obj->cfg.tolerence) {
+            /* too many frames are lost, memory is not enough to reconstruct the packets */
             return FRAG_DEC_ERR_TOO_MANY_FRAME_LOST;
         }
         unmatched_frame_cnt = 0;
-        matrix_line_bm(obj->matrix_line_bm, index - obj->cfg.nb + 1, obj->cfg.nb);
+        matrix_line_bm(obj->matrix_line_bm, index, obj->cfg.nb);
         for (i = 0; i < obj->cfg.nb; i++) {
             if (bit_get(obj->matrix_line_bm, i) == true) {
                 if (bit_get(obj->lost_frm_bm, i) == false) {
@@ -366,7 +376,7 @@ int frag_dec(frag_dec_t *obj, uint16_t fcnt, uint8_t *buf, int len)
                     frag_dec_flash_wr(obj, frame_index, obj->xor_row_data_buf);
                 }
             }
-            obj->finished = true;
+            obj->sta = FRAG_DEC_STA_DONE;
             return obj->lost_frm_count;
         }
     }
@@ -419,7 +429,7 @@ void frag_dec_log_matrix_bits(bm_t *bitmap, int len)
 void frag_dec_log(frag_dec_t *obj)
 {
     int i, j;
-    FRAGLOG("Decode %s\n", obj->finished?"ok":"ng");
+    FRAGLOG("Decode %s\n", (obj->sta == FRAG_DEC_STA_DONE) ? "ok" : "ng");
     for (i = 0; i < obj->cfg.nb; i++) {
         frag_dec_flash_rd(obj, i, obj->row_data_buf);
         for (j = 0; j < obj->cfg.size; j++) {
@@ -427,11 +437,7 @@ void frag_dec_log(frag_dec_t *obj)
         }
         FRAGLOG("\n");
     }
-#if 0
-    FRAGLOG("filled_lost_frm_bm: (%d) ", obj->lost_frm_count);
-    frag_dec_log_bits(obj->filled_lost_frm_bm, obj->lost_frm_count);
 
     FRAGLOG("lost_frm_matrix_bm: (%d) \n", obj->lost_frm_count);
     frag_dec_log_matrix_bits(obj->lost_frm_matrix_bm, obj->lost_frm_count);
-#endif
 }

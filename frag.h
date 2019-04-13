@@ -45,11 +45,17 @@ typedef struct {
     flash_wr_t fwr_func;
 } frag_dec_cfg_t;
 
+typedef enum {
+    FRAG_DEC_STA_UNCODED,       // wait uncoded fragmentations
+    FRAG_DEC_STA_CODED,         // wait coded fragmentations, uncoded frags are processed as coded ones
+    FRAG_DEC_STA_DONE,
+} frag_dec_sta_t;
+
 /* bm is short for bitmap */
 typedef struct {
     frag_dec_cfg_t cfg;
 
-    bool finished;
+    frag_dec_sta_t sta;
 
     bm_t *lost_frm_bm;
     uint16_t lost_frm_count;

@@ -12,11 +12,12 @@ void frag_generate_valid_data_map(uint8_t *map, int len, float r);
 int flash_write(uint32_t addr, uint8_t *buf, uint32_t len);
 int flash_read(uint32_t addr, uint8_t *buf, uint32_t len);
 
-#define FRAG_NB                 (1600)
-#define FRAG_SIZE               (240)
+#define FRAG_NB                 (10)
+#define FRAG_SIZE               (10)
 #define FRAG_CR                 (FRAG_NB + 10)
 #define FRAG_TOLERENCE          (10 + FRAG_NB * (FRAG_PER + 0.05))
 #define FRAG_PER                (0.2)
+#define LOOP_TIMES              (1)
 
 frag_enc_t encobj;
 uint8_t enc_dt[FRAG_NB * FRAG_SIZE];
@@ -57,6 +58,8 @@ int process()
     decobj.cfg.fwr_func = flash_write;
     len = frag_dec_init(&decobj);
     printf("memory cost: %d\n", len);
+
+#if 0
     for (i = 0; i < (encobj.num + encobj.cr); i++) {
         if (dynamic_valid_data_map[i] == 1) {
             //printf("Index %d lost\n", i);
@@ -73,7 +76,45 @@ int process()
             break;
         }
     }
-#if 0
+#else
+    for (i = 0; i < (encobj.num+1); i++) {
+        if (dynamic_valid_data_map[i] == 1) {
+            //printf("Index %d lost\n", i);
+            continue;
+        }
+        ret = frag_dec(&decobj, i + 1, encobj.line + i * decobj.cfg.size, decobj.cfg.size);
+        if (ret == FRAG_DEC_ONGOING) {
+            //printf("\n");
+        } else if (ret >= 0) {
+            printf("dec complete (reconstruct %d packets)\n", ret);
+            break;
+        } else {
+            printf("dec error %d\n", ret);
+            break;
+        }
+    }
+    for (i = 0; i < (encobj.num); i++) {
+        if (dynamic_valid_data_map[i] == 0) {
+            //printf("Index %d lost\n", i);
+            continue;
+        }
+        ret = frag_dec(&decobj, i + 1, encobj.line + i * decobj.cfg.size, decobj.cfg.size);
+        if (ret == FRAG_DEC_ONGOING) {
+            //printf("\n");
+        } else if (ret >= 0) {
+            printf("dec complete (reconstruct %d packets)\n", ret);
+            break;
+        } else {
+            printf("dec error %d\n", ret);
+            break;
+        }
+    }
+#endif
+
+
+
+
+#if 1
     frag_dec_log(&decobj);
 #endif
     if (memcmp(dec_flash_buf, enc_dt, FRAG_NB * FRAG_SIZE) == 0) {
@@ -84,7 +125,6 @@ int process()
     return 0;
 }
 
-#define LOOP_TIMES              (10)
 int main()
 {
     int i;
