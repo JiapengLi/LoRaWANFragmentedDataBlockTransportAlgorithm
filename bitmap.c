@@ -135,6 +135,42 @@ void bit_clear_all(bm_t *bitmap, int size)
     }
 }
 
+int m2t_map(int x, int y, int m)
+{
+    if (x < y) {
+        return -1;
+    }
+    /* doesn't check to speed up the process */
+//    if ((x >= m) || (y >= m)) {
+//        return -1;
+//    }
+    return (y + 1) * (m + m - y) / 2 - (m - x);
+}
+
+bool m2t_get(bm_t *m2tbm, int x, int y, int m)
+{
+    if (x < y) {
+        return false;
+    }
+    return bit_get(m2tbm, (y + 1) * (m + m - y) / 2 - (m - x));
+}
+
+void m2t_set(bm_t *m2tbm, int x, int y, int m)
+{
+    if (x < y) {
+        return;
+    }
+    bit_set(m2tbm, (y + 1) * (m + m - y) / 2 - (m - x));
+}
+
+void m2t_clr(bm_t *m2tbm, int x, int y, int m)
+{
+    if (x < y) {
+        return;
+    }
+    bit_clr(m2tbm, (y + 1) * (m + m - y) / 2 - (m - x));
+}
+
 static const uint8_t num_to_bits[16] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4};
 static int count_bits(uint32_t num)
 {

@@ -57,9 +57,13 @@ int process()
     decobj.cfg.frd_func = flash_read;
     decobj.cfg.fwr_func = flash_write;
     len = frag_dec_init(&decobj);
-    printf("memory cost: %d\n", len);
+    printf("memory cost: %d, nb %d, size %d, tol %d\n",
+           len,
+           decobj.cfg.nb,
+           decobj.cfg.size,
+           decobj.cfg.tolerence);
 
-#if 0
+#if 1
     for (i = 0; i < (encobj.num + encobj.cr); i++) {
         if (dynamic_valid_data_map[i] == 1) {
             //printf("Index %d lost\n", i);
@@ -125,9 +129,28 @@ int process()
     return 0;
 }
 
+void test(void)
+{
+    int x, y, m;
+    int oft;
+    m = 10;
+    for (y = 0; y < m; y++) {
+        for (x = 0; x < m; x++) {
+            oft = m2t_map(x, y, m);
+            if (oft >= 0) {
+                printf("(%d, %d) -> %d\n", x, y, oft);
+            }
+        }
+    }
+    exit(0);
+}
+
 int main()
 {
     int i;
+
+    //test();
+
     clock_t t1 = clock();
     for (i = 0; i < LOOP_TIMES; i++) {
         process();

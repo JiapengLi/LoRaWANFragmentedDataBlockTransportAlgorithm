@@ -4,6 +4,8 @@
 #define FRAGLOG(x...)       printf(x)
 #define DEBUG
 
+#define FRAG_COMPRESS_MATRIX_SIZE
+
 static bool is_power2(uint32_t num)
 {
 	return (num != 0) && ((num & (num-1)) == 0);
@@ -134,7 +136,8 @@ int frag_enc(frag_enc_t *obj, uint8_t *buf, int len, int unit, int cr)
     return 0;
 }
 
-#define ALIGN4(x)           (x) = (((x) + 0x03) & ~0x03)
+//#define ALIGN4(x)           (x) = (((x) + 0x03) & ~0x03)
+#define ALIGN4(x)           (x) = (x)
 int frag_dec_init(frag_dec_t *obj)
 {
     int i, j;
@@ -150,7 +153,12 @@ int frag_dec_init(frag_dec_t *obj)
 
     ALIGN4(i);
     obj->lost_frm_matrix_bm = (bm_t *)(obj->cfg.dt + i);
+    #ifdef FRAG_COMPRESS_MATRIX_SIZE
+    /* left below of the matrix is useless compress used memory */
+    i += (obj->cfg.tolerence * (obj->cfg.tolerence + 1) / 2 + BM_UNIT - 1) / BM_UNIT * sizeof(bm_t);
+    #else
     i += (obj->cfg.tolerence * obj->cfg.tolerence + BM_UNIT - 1) / BM_UNIT * sizeof(bm_t);
+    #endif // FRAG_COMPRESS_MATRIX_SIZE
 
     ALIGN4(i);
     obj->matched_lost_frm_bm0 = (bm_t *)(obj->cfg.dt + i);
@@ -216,6 +224,36 @@ void frag_dec_flash_rd(frag_dec_t *obj, uint16_t index, uint8_t *buf)
     #endif
 }
 
+#ifdef FRAG_COMPRESS_MATRIX_SIZE
+void frag_dec_lost_frm_matrix_save(frag_dec_t *obj, uint16_t lindex, bm_t *map, int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (bit_get(map, i)) {
+            m2t_set(obj->lost_frm_matrix_bm, i, lindex, len);
+        } else {
+            m2t_clr(obj->lost_frm_matrix_bm, i, lindex, len);
+        }
+    }
+}
+
+void frag_dec_lost_frm_matrix_load(frag_dec_t *obj, uint16_t lindex, bm_t *map, int len)
+{
+    int i;
+    for (i = 0; i < len; i++) {
+        if (m2t_get(obj->lost_frm_matrix_bm, i, lindex, len)) {
+            bit_set(map, i);
+        } else {
+            bit_clr(map, i);
+        }
+    }
+}
+
+bool frag_dec_lost_frm_matrix_is_diagonal(frag_dec_t *obj, uint16_t lindex, int len)
+{
+    return m2t_get(obj->lost_frm_matrix_bm, lindex, lindex, len);
+}
+#else
 void frag_dec_lost_frm_matrix_save(frag_dec_t *obj, uint16_t lindex, bm_t *map, int len)
 {
     int i, offset;
@@ -247,6 +285,7 @@ bool frag_dec_lost_frm_matrix_is_diagonal(frag_dec_t *obj, uint16_t lindex, int 
 {
     return bit_get(obj->lost_frm_matrix_bm, lindex * len + lindex);
 }
+#endif
 
 /* fcnt from 1 to nb */
 int frag_dec(frag_dec_t *obj, uint16_t fcnt, uint8_t *buf, int len)
@@ -412,7 +451,11 @@ void frag_dec_log_matrix_bits(bm_t *bitmap, int len)
     int i, j;
     for (i = 0; i < len; i++) {
         for (j = 0; j < len; j++) {
-            if (bit_get(bitmap, i * len + j)) {
+#ifdef FRAG_COMPRESS_MATRIX_SIZE
+            if (m2t_get(bitmap, j, i, len)) {
+#else
+            if (bit_get(bitmap, j + i * len)) {
+#endif
                 FRAGLOG("1 ");
             } else {
                 FRAGLOG("0 ");

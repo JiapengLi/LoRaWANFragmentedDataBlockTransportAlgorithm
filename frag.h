@@ -79,5 +79,6 @@ void frag_dec_log_bits(bm_t *bitmap, int len);
 void frag_dec_log_buf(uint8_t *buf, int len);
 void frag_dec_log(frag_dec_t *obj);
 
+int m2t_map(int x, int y, int m);
 
 #endif // __FRAGMENTATION_H

@@ -3,7 +3,7 @@
 
 //#define BM_1
 //#define BM_2
-#define BM_4
+#define BM_1
 #define BUILTIN_FUNC
 
 /*
@@ -62,5 +62,10 @@ void bit_xor(bm_t *des, bm_t *src, int size);
 bool bit_is_all_clear(bm_t *bitmap, int size);
 
 void bit_clear_all(bm_t *bitmap, int size);
+
+inline int m2t_map(int x, int y, int m);
+inline bool m2t_get(bm_t *m2tbm, int x, int y, int m);
+inline void m2t_set(bm_t *m2tbm, int x, int y, int m);
+inline void m2t_clr(bm_t *m2tbm, int x, int y, int m);
 
 #endif // __BITMAP_H
