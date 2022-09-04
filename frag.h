@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 Jiapeng Li <mail@jiapeng.me>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #ifndef __FRAGMENTATION_H
 #define __FRAGMENTATION_H
 

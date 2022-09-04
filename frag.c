@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2022 Jiapeng Li <mail@jiapeng.me>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include "frag.h"
 
 #define FRAGDBG(x...)       printf(x)
